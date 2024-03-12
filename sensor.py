@@ -2,6 +2,7 @@ import inspect
 import pprint
 from datetime import datetime, timedelta
 from json.decoder import JSONDecodeError
+from os import getenv
 from random import choice, uniform
 from uuid import uuid4
 
@@ -134,6 +135,7 @@ def new_jrpc_response(
 Sensor
 ====================================================
 """
+SENSOR_PIN = getenv("SENSOR_PIN", "0000")
 SENSOR_HID = uuid4().hex
 SENSOR_MODELS = ["RM85", "RM125", "RM250", "RMZ250"]
 SENSOR_MODEL = choice(SENSOR_MODELS)
@@ -271,7 +273,7 @@ def update_firmware() -> tuple:
         SENSOR["firmware_version"] += 0.1
 
         return None, f"updating, will be back in {new_back_online_time - now}"
-    
+
     return None, "already at latest firmware version"
 
 
@@ -282,7 +284,7 @@ def reboot() -> tuple:
     new_back_online_time = now + timedelta(seconds=10)
     BACK_ONLINE_TIME = new_back_online_time
 
-    return None, f"rebooting, will be back in {new_back_online_time - now}" 
+    return None, f"rebooting, will be back in {new_back_online_time - now}"
 
 
 def get_reading() -> tuple:
@@ -334,6 +336,10 @@ def mind_transitive_state(func):
 async def handle_http_request(request) -> web.Response:
     err = req = None
 
+    auth_header = request.headers.get("Authorization")
+    if auth_header != SENSOR_PIN:
+        return web.Response(status=401)
+
     if not request.body_exists:
         err = new_jrpc_error(
             PARSE_ERROR_CODE,
@@ -342,6 +348,9 @@ async def handle_http_request(request) -> web.Response:
                 "error": "request body is missing",
             },
         )
+
+        res = new_jrpc_response(error=err)
+        return web.json_response(res)
 
     request_json = {}
 
@@ -355,6 +364,9 @@ async def handle_http_request(request) -> web.Response:
                 "error": "failed to parse request body",
             },
         )
+
+        res = new_jrpc_response(error=err)
+        return web.json_response(res)
 
     err, req = new_jrpc_request(
         **request_json, available_methods=SENSOR_METHODS
