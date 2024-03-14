@@ -40,14 +40,14 @@ def new_jrpc_error(code: int, message: str, data: dict | None = None) -> dict:
 
 def new_jrpc_request(
     available_methods: dict,
-    jsonrpc: str,
-    id: int,
-    method: str,
+    jsonrpc: str | None = None,
+    id: int | None = None,
+    method: str | None = None,
     params: dict | None = None,
 ) -> tuple:
     err = res = None
 
-    if jsonrpc != PROTOCOL_VERSION:
+    if not jsonrpc or jsonrpc != PROTOCOL_VERSION:
         err = new_jrpc_error(
             INVALID_REQUEST_CODE,
             INVALID_REQUEST_MSG,
@@ -57,51 +57,59 @@ def new_jrpc_request(
                 "expected": PROTOCOL_VERSION,
             },
         )
+        return err, res
 
-    if not isinstance(id, int):
+    if not id or not isinstance(id, int):
         err = new_jrpc_error(
             INVALID_REQUEST_CODE,
             INVALID_REQUEST_MSG,
-            {"field": "jsonrpc", "received": id, "expected": "integer value"},
+            {"field": "id", "received": id, "expected": "integer value"},
         )
+        return err, res
 
-    if method:
-        if method not in available_methods:
+    if not method or method not in available_methods:
+        err = new_jrpc_error(
+            METHOD_NOT_FOUND_CODE,
+            METHOD_NOT_FOUND_MSG,
+            {
+                "field": "method",
+                "received": method,
+                "available_methods": list(available_methods.keys()),
+            },
+        )
+        return err, res
+
+    requested_method = available_methods[method]
+    legal_params = [
+        str(param) for param in inspect.signature(requested_method).parameters
+    ]
+
+    if legal_params:
+        if not params:
             err = new_jrpc_error(
-                METHOD_NOT_FOUND_CODE,
-                METHOD_NOT_FOUND_MSG,
+                INVALID_PARAMS_CODE,
+                INVALID_PARAMS_MSG,
                 {
-                    "field": "method",
-                    "received": method,
-                    "available_methods": list(available_methods.keys()),
+                    "field": "params",
+                    "received": params,
+                    "expected_params": legal_params,
                 },
             )
+            return err, res
 
-            if err:
-                return err, res
+        requested_params = list(params.keys())
 
-        requested_method = available_methods[method]
-
-        if params:
-            requested_params = list(params.keys())
-            legal_params = [
-                str(param)
-                for param in inspect.signature(requested_method).parameters
-            ]
-
-            if requested_params != legal_params:
-                err = new_jrpc_error(
-                    INVALID_PARAMS_CODE,
-                    INVALID_PARAMS_MSG,
-                    {
-                        "field": "params",
-                        "received": params.keys(),
-                        "expected_params": legal_params,
-                    },
-                )
-
-    if err:
-        return err, res
+        if requested_params != legal_params:
+            err = new_jrpc_error(
+                INVALID_PARAMS_CODE,
+                INVALID_PARAMS_MSG,
+                {
+                    "field": "params",
+                    "received": list(params.keys()),
+                    "expected_params": legal_params,
+                },
+            )
+            return err, res
 
     res = {
         "jsonrpc": jsonrpc,
@@ -113,9 +121,7 @@ def new_jrpc_request(
     return err, res
 
 
-def new_jrpc_response(
-    result: dict | None = None, error: dict | None = None
-) -> dict:
+def new_jrpc_response(result: dict | None = None, error: dict | None = None) -> dict:
     res = {
         "jsonrpc": PROTOCOL_VERSION,
         "id": 1,
@@ -143,7 +149,7 @@ SENSOR_MODEL = choice(SENSOR_MODELS)
 FACTORY_SENSOR_NAME = SENSOR_MODEL + "-default-site"
 SENSOR_NAME = FACTORY_SENSOR_NAME
 
-FACTORY_FIRMWARE_VERSION = 1.0
+FACTORY_FIRMWARE_VERSION = 10
 FIRMWARE_VERSION = FACTORY_FIRMWARE_VERSION
 
 FACTORY_READING_INTERVAL = 3
@@ -182,8 +188,7 @@ def get_methods() -> tuple:
     return None, [
         {
             method_name: [
-                str(param)
-                for param in inspect.signature(method_obj).parameters
+                str(param) for param in inspect.signature(method_obj).parameters
             ]
         }
         for method_name, method_obj in SENSOR_METHODS.items()
@@ -205,15 +210,11 @@ def set_reading_interval(
                 "expected": "integer",
             },
         )
-
-    if err:
         return err, res
 
     SENSOR["reading_interval"] = interval
 
-    res = SENSOR
-
-    return err, res
+    return err, SENSOR
 
 
 def set_name(
@@ -231,24 +232,17 @@ def set_name(
                 "expected": "non-empty string",
             },
         )
-
-    if err:
         return err, res
 
     SENSOR["name"] = name
 
-    res = SENSOR
-
-    return err, res
+    return err, SENSOR
 
 
 def reset_to_factory() -> tuple:
     global SENSOR
     global BACK_ONLINE_TIME
-
-    now = datetime.now()
-    new_back_online_time = now + timedelta(seconds=15)
-    BACK_ONLINE_TIME = new_back_online_time
+    BACK_ONLINE_TIME = datetime.now() + timedelta(seconds=5)
 
     SENSOR = {
         "name": FACTORY_SENSOR_NAME,
@@ -258,33 +252,24 @@ def reset_to_factory() -> tuple:
         "reading_interval": FACTORY_READING_INTERVAL,
     }
 
-    return None, f"resetting, will be back in {new_back_online_time - now}"
+    return None, "resetting, will be back in 5 seconds"
 
 
 def update_firmware() -> tuple:
 
-    if SENSOR["firmware_version"] != 1.5:
+    if SENSOR["firmware_version"] != 15:
         global BACK_ONLINE_TIME
-
-        now = datetime.now()
-        new_back_online_time = now + timedelta(seconds=20)
-        BACK_ONLINE_TIME = new_back_online_time
-
-        SENSOR["firmware_version"] += 0.1
-
-        return None, f"updating, will be back in {new_back_online_time - now}"
+        BACK_ONLINE_TIME = datetime.now() + timedelta(seconds=8)
+        SENSOR["firmware_version"] += 1
+        return None, "updating, will be back in 8 seconds"
 
     return None, "already at latest firmware version"
 
 
 def reboot() -> tuple:
     global BACK_ONLINE_TIME
-
-    now = datetime.now()
-    new_back_online_time = now + timedelta(seconds=10)
-    BACK_ONLINE_TIME = new_back_online_time
-
-    return None, f"rebooting, will be back in {new_back_online_time - now}"
+    BACK_ONLINE_TIME = datetime.now() + timedelta(seconds=3)
+    return None, "rebooting, will be back in 3 seconds"
 
 
 def get_reading() -> tuple:
@@ -368,9 +353,7 @@ async def handle_http_request(request) -> web.Response:
         res = new_jrpc_response(error=err)
         return web.json_response(res)
 
-    err, req = new_jrpc_request(
-        **request_json, available_methods=SENSOR_METHODS
-    )
+    err, req = new_jrpc_request(**request_json, available_methods=SENSOR_METHODS)
 
     if err:
         res = new_jrpc_response(error=err)
