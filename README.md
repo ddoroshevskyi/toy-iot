@@ -25,11 +25,11 @@ python -m aiohttp.web -H localhost -P 9898 sensor:init_func
 Сенсор має [JSON-RPC](https://www.jsonrpc.org/specification) API.
 
 ### Методи | Methods
-Методи доступні на `http:0.0.0.0:9898/rpc` (Docker) або `127.0.0.1:9898/rpc` (локально). Щоб побачити повний список методів та їх параметрів, відправте запит:
+Методи доступні на `http:0.0.0.0:9898/rpc` (Docker) або `http://127.0.0.1:9898/rpc` (локально). Щоб побачити повний список методів та їх параметрів, відправте запит:
 
-Methods are available at `http:0.0.0.0:9898/rpc` (Docker) or `127.0.0.1/rpc` (locally). In order to see the full list of methods and their arguments, make the following request:
+Methods are available at `http:0.0.0.0:9898/rpc` (Docker) or `http://127.0.0.1/rpc` (locally). In order to see the full list of methods and their arguments, make the following request:
 ```
-curl -X POST 0.0.0.0:9898/rpc -d '{"method": "get_methods", "jsonrpc": "2.0", "id": 1}'
+curl -X POST http://0.0.0.0:9898/rpc -d '{"method": "get_methods", "jsonrpc": "2.0", "id": 1}'
 
 {"jsonrpc": "2.0", "id": 1, "result": [{"get_info": []}, {"get_methods": []}, {"set_name": ["name"]}, {"set_reading_interval": ["interval"]}, {"reset_to_factory": []}, {"update_firmware": []}, {"reboot": []}, {"get_reading": []}]}
 ```
