@@ -40,12 +40,14 @@ def new_jrpc_error(code: int, message: str, data: dict | None = None) -> dict:
 
 def new_jrpc_request(
     available_methods: dict,
-    jsonrpc: str | None = None,
-    id: int | None = None,
-    method: str | None = None,
-    params: dict | None = None,
+    **kwargs,
 ) -> tuple:
     err = res = None
+
+    jsonrpc = kwargs.get("jsonrpc")
+    id = kwargs.get("id")
+    method = kwargs.get("method")
+    params = kwargs.get("params")
 
     if not jsonrpc or jsonrpc != PROTOCOL_VERSION:
         err = new_jrpc_error(
