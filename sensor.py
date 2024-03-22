@@ -3,7 +3,7 @@ import pprint
 from datetime import datetime, timedelta
 from json.decoder import JSONDecodeError
 from os import getenv
-from random import choice, uniform
+from random import choice, randint, uniform
 from uuid import uuid4
 
 from aiohttp import web
@@ -244,7 +244,8 @@ def set_name(
 def reset_to_factory() -> tuple:
     global SENSOR
     global BACK_ONLINE_TIME
-    BACK_ONLINE_TIME = datetime.now() + timedelta(seconds=5)
+    reset_duration = randint(5, 13)
+    BACK_ONLINE_TIME = datetime.now() + timedelta(seconds=reset_duration)
 
     SENSOR = {
         "name": FACTORY_SENSOR_NAME,
@@ -254,24 +255,26 @@ def reset_to_factory() -> tuple:
         "reading_interval": FACTORY_READING_INTERVAL,
     }
 
-    return None, "resetting, will be back in 5 seconds"
+    return None, "resetting"
 
 
 def update_firmware() -> tuple:
 
     if SENSOR["firmware_version"] != 15:
         global BACK_ONLINE_TIME
-        BACK_ONLINE_TIME = datetime.now() + timedelta(seconds=8)
+        update_duration = randint(5, 13)
+        BACK_ONLINE_TIME = datetime.now() + timedelta(seconds=update_duration)
         SENSOR["firmware_version"] += 1
-        return None, "updating, will be back in 8 seconds"
+        return None, "updating"
 
     return None, "already at latest firmware version"
 
 
 def reboot() -> tuple:
     global BACK_ONLINE_TIME
-    BACK_ONLINE_TIME = datetime.now() + timedelta(seconds=3)
-    return None, "rebooting, will be back in 3 seconds"
+    reboot_duration = randint(3, 8)
+    BACK_ONLINE_TIME = datetime.now() + timedelta(seconds=reboot_duration)
+    return None, "rebooting"
 
 
 def get_reading() -> tuple:
