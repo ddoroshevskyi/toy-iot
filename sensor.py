@@ -216,6 +216,11 @@ def set_reading_interval(
 
     SENSOR["reading_interval"] = interval
 
+    global NEXT_READING_TIME
+    NEXT_READING_TIME = datetime.now() + timedelta(
+        seconds=SENSOR["reading_interval"]
+    )
+
     return err, SENSOR
 
 
